@@ -129,6 +129,54 @@ public:
         numberOfBuckets = newNumberOfBuckets;
     }
 
+    Element<Value>* findValue(const int& key)
+    {
+        int bucketIndex = hash(key);
+        Element<Value>* current = bucketContainer[bucketIndex].start;
+        while (current != nullptr)
+        {
+            if (current->key == key)
+            {
+                return current;
+            }
+            current = current->next;
+        }
+        return nullptr;
+        
+    }
+
+	void remove(const int& key) {
+
+		int bucketIndex = hash(key);
+		Element<Value>* current = bucketContainer[bucketIndex].start;
+		Element<Value>* previous = nullptr;
+		while (current != nullptr)
+		{
+			if (current->key == key)
+			{
+				if (previous == nullptr)
+				{
+					bucketContainer[bucketIndex].start = current->next;
+				}
+				else
+				{
+					previous->next = current->next;
+
+				}
+
+				delete current;
+				numberOfEntries--;
+				return;
+			}
+
+			previous = current;
+			current = current->next;
+
+		}
+
+
+	} 
+
     // Print the contents of each bucket
     void printBuckets()
     {
@@ -166,5 +214,32 @@ int main() {
     myMap.add(12, "NEW");
 
     myMap.printBuckets();
+
+
+    // Test find item by key 
+
+    Element<std::string>* result = map.findValue(17);
+
+    if (result != nullptr)
+    {
+        std::cout << result->mappedValue << '\n';
+    }
+
+    if (map.findValue(99) == nullptr)
+    {
+        std::cout << "Key not found\n";
+    }
+
+    // Test remove()
+    HashMap<std::string> thirdMap;
+
+    thirdMap.add(32, "A");
+    thirdMap.add(22, "B");
+    thirdMap.add(12, "C");
+
+    thirdMap.remove(12);
+    thirdMap.printBuckets();
+    thirdMap.remove(99);
+    thirdMap.printBuckets();
 
 }
