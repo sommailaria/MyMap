@@ -464,3 +464,82 @@ Element<Value>* previous = nullptr;
 
 
 }
+--------------------------------------------------------------------------------------------------------------------------------
+
+Getting key to work with different types and not only ints 
+
+As of now, the class contains 
+
+int key 
+
+and the class is declared as 
+
+template <typename Value>
+class HashMap
+
+so if we want the class to work with different types, we need to have generic Key and Value
+so we can do something like 
+
+template <typename Key, typename Value>
+class HashMap
+
+and Element is 
+
+template <typename Key, typename Value>
+struct Element
+{
+	Key key,
+	Value mappedValue;
+}
+
+so we have to update the places where Element and Bucket are instantiated so they receive both Key and Value
+
+template <typename Key, typename Value>
+struct Element
+{
+    Key key;
+    Value mappedValue;
+    Element<Key, Value>* next = nullptr;
+};
+
+----------------------------------------------------------------------------------------------------------------------------
+
+How to retrieve hash number if key can be any type
+
+Currently, the process is: 
+
+We have our key (which is an int) 
+we use the key int directly to calculate the bucket index using modulo operation with num of buckets
+when the operation is done we have our index
+
+However, if we want to accept different key types (for example, a string), the process should be: 
+
+key is not an int 
+
+|
+|--> so we need a way to generate a numeric hash value from the key so that can be our hash value
+
+During rehash(), we cannot reuse hash(key) directly 
+because hash() uses the current bucketContainer.size(). 
+Rehashing needs to calculate the bucket index using the new bucket count, so we hash the key and then use % newNumberOfBuckets.
+We can do so with std::hash function 
+
+So the process would be: 
+
+we have our key 
+we pass our key to std::hash()
+std::hash() generates a numeric hash value of type std::size_t
+we use this value for the modulo operation with num of buckets to calculate the bucket index where the key/value pair will land
+
+std::hash needs #include <functional> header 
+
+std::size_t hash(const Key& key)
+  {
+     std::hash<Key> hasher;
+     std::size_t hashValue = hasher(key);
+     std::size_t bucketIndex = hashValue % bucketContainer.size();
+
+      return bucketIndex;
+  }
+
+
