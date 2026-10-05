@@ -2,26 +2,27 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <functional>
 
-template <typename Value>
+template <typename Key, typename Value>
 struct Element
 {
-    int key;
+    Key key;
     Value mappedValue;
-    Element<Value>* next = nullptr;
+    Element<Key,Value>* next = nullptr;
 };
 
-template <typename Value>
+template <typename Key, typename Value>
 struct Bucket
 {
-    Element<Value>* start = nullptr;
+    Element<Key,Value>* start = nullptr;
     
 };
 
-template <typename Value>
+template <typename Key, typename Value>
 class HashMap
 {
-    std::vector<Bucket<Value>> bucketContainer;
+    std::vector<Bucket<Key,Value>> bucketContainer;
     int numberOfEntries;
     double maxLoadFactor;
 
@@ -39,10 +40,10 @@ public:
     {
         for (std::size_t i = 0; i < bucketContainer.size(); i++)
         {
-            Element<Value>* current = bucketContainer[i].start;
+            Element<Key,Value>* current = bucketContainer[i].start;
             while (current != nullptr)
             {
-                Element<Value>* temp = current->next;
+                Element<Key,Value>* temp = current->next;
                 delete current;
                 current = temp;
 
@@ -52,19 +53,22 @@ public:
     }
 
     // Hash function
-   std::size_t hash(const int& key)
+   std::size_t hash(const Key& key)
     {
-        std::size_t bucketIndex = key % bucketContainer.size();
+       std::hash<Key> hasher;
+       std::size_t hashValue = hasher(key);
+       std::size_t bucketIndex = hashValue % bucketContainer.size();
+
         return bucketIndex;
     }
 
     // Add a new key/value pair
-    void add(const int& key, const Value& mappedValue)
+    void add(const Key& key, const Value& mappedValue)
     {
         std::size_t bucketIndex = hash(key);
 
         // Check whether the key already exists
-        Element<Value>* current = bucketContainer[bucketIndex].start;
+        Element<Key,Value>* current = bucketContainer[bucketIndex].start;
 
         for (; current != nullptr; current = current->next)
         {
@@ -75,7 +79,7 @@ public:
         }
 
         // Create the new element
-        Element<Value>* bucketMember = new Element<Value>;
+        Element<Key,Value>* bucketMember = new Element<Key,Value>;
 
         bucketMember->key = key;
         bucketMember->mappedValue = mappedValue;
@@ -100,26 +104,21 @@ public:
     void rehash()
     {
         std::size_t newNumberOfBuckets = bucketContainer.size() * 2;
-        std::vector<Bucket<Value>> newBucketContainer;
+        std::vector<Bucket<Key,Value>> newBucketContainer;
         newBucketContainer.resize(newNumberOfBuckets);
 
         for (std::size_t i = 0; i < bucketContainer.size(); i++)
         {
-            Element<Value>* current = bucketContainer[i].start;
+            Element<Key, Value>* current = bucketContainer[i].start;
 
             while (current != nullptr)
             {
-                std::size_t newBucketIndex =
-                    current->key % newNumberOfBuckets;
-
-                Element<Value>* temp = current->next;
-
-                current->next =
-                    newBucketContainer[newBucketIndex].start;
-
-                newBucketContainer[newBucketIndex].start =
-                    current;
-
+                std::hash<Key> hasher;
+                std::size_t hashValue = hasher(current->key);
+                std::size_t newBucketIndex = hashValue % newNumberOfBuckets;
+                Element<Key, Value>* temp = current->next;
+                current->next = newBucketContainer[newBucketIndex].start;
+                newBucketContainer[newBucketIndex].start = current;
                 current = temp;
             }
         }
@@ -128,10 +127,10 @@ public:
        
     }
 
-    Element<Value>* findValue(const int& key)
+    Element<Key,Value>* findValue(const Key& key)
     {
         std::size_t bucketIndex = hash(key);
-        Element<Value>* current = bucketContainer[bucketIndex].start;
+        Element<Key,Value>* current = bucketContainer[bucketIndex].start;
         while (current != nullptr)
         {
             if (current->key == key)
@@ -144,11 +143,11 @@ public:
         
     }
 
-	void remove(const int& key) {
+	void remove(const Key& key) {
 
         std::size_t bucketIndex = hash(key);
-		Element<Value>* current = bucketContainer[bucketIndex].start;
-		Element<Value>* previous = nullptr;
+		Element<Key,Value>* current = bucketContainer[bucketIndex].start;
+		Element<Key,Value>* previous = nullptr;
 		while (current != nullptr)
 		{
 			if (current->key == key)
@@ -181,7 +180,7 @@ public:
     {
         for (std::size_t i = 0; i < bucketContainer.size(); i++)
         {
-            Element<Value>* current =
+            Element<Key,Value>* current =
                 bucketContainer[i].start;
 
             std::cout << "Bucket " << i << ": ";
@@ -199,7 +198,7 @@ public:
 
 int main() {
     // Testing rehash with a collision
-    HashMap<std::string> map;
+    HashMap<int, std::string> map;
     map.add(12, "A");
     map.add(17, "B");
     map.add(22, "C");
@@ -208,7 +207,7 @@ int main() {
     map.printBuckets();
 
     // Test duplicate rejection
-    HashMap<std::string> myMap;
+    HashMap<int,std::string> myMap;
     myMap.add(12, "A");
     myMap.add(12, "NEW");
 
@@ -217,7 +216,7 @@ int main() {
 
     // Test find item by key 
 
-    Element<std::string>* result = map.findValue(17);
+    Element<int, std::string>* result = map.findValue(17);
 
     if (result != nullptr)
     {
@@ -230,7 +229,7 @@ int main() {
     }
 
     // Test remove()
-    HashMap<std::string> thirdMap;
+    HashMap<int,std::string> thirdMap;
 
     thirdMap.add(32, "A");
     thirdMap.add(22, "B");
@@ -240,5 +239,33 @@ int main() {
     thirdMap.printBuckets();
     thirdMap.remove(99);
     thirdMap.printBuckets();
+
+    // Testing new key setup 
+    HashMap<std::string, int> studentGraduations;
+    studentGraduations.add("Anna", 2022);
+    studentGraduations.add("Marco", 2025);
+    studentGraduations.add("Vittoria", 2023);
+    studentGraduations.add("Anna", 2024);
+    studentGraduations.add("Luca", 2023);
+    studentGraduations.printBuckets();
+
+    // Testing retrieve by Value 
+
+    Element<std::string, int>* query = studentGraduations.findValue("Marco");
+    if (query != nullptr)
+    {
+        std::cout << query->mappedValue << '\n';
+    }
+
+    if (studentGraduations.findValue("Giulia") == nullptr)
+    {
+        std::cout << "Key not found\n";
+    }
+
+   
+   
+
+
+
 
 }
