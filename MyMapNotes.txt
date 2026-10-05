@@ -1,0 +1,466 @@
+MyMap (Main Class)
+
+|
+|
+|
+|
+|
+|
+|--------Bucket 0
+             |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 
+|
+|
+|
+|--------Bucket 1
+|
+			  |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 
+|
+|
+|--------Bucket 2
+				 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 
+|
+|
+|
+|--------Bucket 3
+ |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 
+|
+|
+|--------Bucket 4
+ |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 
+|
+|
+|
+|---------Bucket 5
+ |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 |
+			 |
+			 |
+			 |------Element (Key + map)
+			 
+
+
+
+
+Each element is composed by the key and the mapped value, so for example we can do something like 
+
+template <typename Value>
+struct Element {
+int key;
+Value mappedValue;
+Element<Value>* next = nullptr;
+};
+
+We also need the main Bucket struct which should hold the pointer which marks the beginning of the bucket 
+
+template <typename Value>
+struct Bucket {
+
+Element<Value>* start = nullptr;
+
+
+};
+
+Element is the smallest unit, which is contained in a Bucket
+Buckets are contained in the map
+
+The map needs: 
+
+It needs to add new buckets when necessary 
+It needs to know the number of entries
+It needs the formula to calculate load factor 
+It needs the dynamic array of buckets
+it needs to store the load factor as state
+
+How will I handle collisions:
+
+Separate chaining, each bucket holds a pointer to the first element, and colliding elements will be connected with a next pointer
+
+Other conditions: 
+
+Initial bucket count: 5
+Maximum load factor: 0.75
+Growth strategy: double the number of buckets
+Rehash condition: currentLoadFactor > maxLoadFactor
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+Base Class: 
+
+template <typename Value>
+class HashMap
+{
+    // Bucket<Value>* bucketContainer // new Bucket<Value>[numberOfBuckets];
+     int numberOfBuckets
+     int numberOfEntries
+	double maxLoadFactor;
+};
+
+Constructor
+
+numberOfBuckets = 5
+numberOfEntries = 0
+maxLoadFactor = 0.75
+
+bucketContainer = new Bucket<Value>[numberOfBuckets];
+
+HashMap()
+{
+     numberOfBuckets = 5;
+	 bucketContainer = new Bucket<Value>[numberOfBuckets];
+	 numberOfEntries = 0;
+	 maxLoadFactor = 0.75;
+	 
+    
+}
+
+Destructor 
+
+As the class has the main bucket container and the individual elements, there are two layers to manage, we need to delete each element individually and then, 
+when the chain is empty, delete the bucket container with delete[]
+
+~HashMap() 
+{
+    for (int i = 0; i < numberOfBuckets; i++)
+    {
+        Element<Value>* current = bucketContainer[i].start;
+        while (current != nullptr)
+        {
+            Element<Value>* temp = current->next;
+            delete current;
+            current = temp;
+
+        }
+    }
+    delete[] bucketContainer;
+}
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Hash function to determine the bucket where the key/element pair goes
+
+int hash(const int& key) {
+	
+	int bucketIndex = key % numberOfBuckets;
+	return bucketIndex;
+}
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+Add function which adds a new element to the bucket 
+This function needs: 
+
+to calculate the bucket where the pair will land with hash function
+to count the num of elements to calculate load factor, so we know if by adding that element we need to grow the map and rehash 
+so it needs a variable which increases anytime we add something
+it needs to create an element
+we assign the key and the value to the element we created above
+we connect the start of the function to the bucket element (in case it's the first)
+we also need to check if the key is unique before we create the new element as key must be unique
+so in case of duplicate key I do not add anything and just exit the function
+When adding another element we add it to the front of the chain 
+we increase the variable which counts the number of entries
+
+
+void add(const int& key, const Value& mappedValue)
+{
+    int bucketIndex = hash(key);
+
+    // Check whether the key already exists
+    Element<Value>* current = bucketContainer[bucketIndex].start;
+
+    for (; current != nullptr; current = current->next)
+    {
+        if (current->key == key)
+        {
+            return;
+        }
+    }
+
+    // Create the new element
+    Element<Value>* bucketMember = new Element<Value>;
+
+    bucketMember->key = key;
+    bucketMember->mappedValue = mappedValue;
+
+    // Add the element to the front of the chain
+    bucketMember->next = bucketContainer[bucketIndex].start;
+    bucketContainer[bucketIndex].start = bucketMember;
+
+    numberOfEntries++;
+
+    // Check the load factor
+    double currentLoadFactor =
+    static_cast<double>(numberOfEntries) / numberOfBuckets;
+	
+	// At this point, if we add and need to grow the map, a new function is needed to rehash elements and add buckets
+
+    if (currentLoadFactor > maxLoadFactor) {
+	
+	         rehash();
+	}
+
+
+	//Logic for the rehash function when the map needs to grow
+	1. Calculate the new bucket count
+2. Allocate the new bucket array
+3. Visit each old bucket
+4. Visit each element in its chain
+5. Calculate the element's new bucket index
+6. Save its old next pointer
+7. Relink it into the new bucket
+8. Continue through the old chain
+9. Delete the old bucket array
+10. Make bucketContainer point to the new array
+11. Update numberOfBuckets
+
+----------------------------------------------------------------------------------------------------------------------------
+
+When we need to rehash, we recalculate the bucket where each element is collocated.
+Because the hash calculation depends on numberOfBuckets,
+ when the number of buckets changes, the same key may produce a different bucket index. 
+Therefore, every existing element must have its bucket index recalculated.
+void rehash()
+{
+    int newNumberOfBuckets = numberOfBuckets * 2;
+
+    Bucket<Value>* newBucketContainer =
+        new Bucket<Value>[newNumberOfBuckets];
+
+    for (int i = 0; i < numberOfBuckets; i++)
+    {
+        Element<Value>* current = bucketContainer[i].start;
+
+        while (current != nullptr)
+        {
+            int newBucketIndex = current -> key % newNumberOfBuckets;
+			Element<Value>* temp = current -> next;
+			current->next = newBucketContainer[newBucketIndex].start;
+			newBucketContainer[newBucketIndex].start = current;
+			current = temp;		
+        }
+    }
+
+      delete[] bucketContainer;
+      bucketContainer = newBucketContainer;
+      numberOfBuckets = newNumberOfBuckets;
+    
+}
+}
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+We can calculate how much every insertion weighs with: load factor = number of entries / number of Buckets
+
+So, if we have 5 buckets and load factor is 0.75, rehash will be triggered when load factor is bigger than 0.75
+
+1/5 = 0.20
+2/5 = 0.40
+3 / 5 = 0.60
+4 / 5 = 0.80 --> rehash triggers here 
+
+Therefore
+
+Key from 1 to 3: will be placed in the buckets we have originally 
+When we add the 4th, rehash happens and all key will move within the new 10 buckets
+
+so expected output after rehash is, given our keys are 21, 12, 7, 18
+
+Bucket 0 → empty
+Bucket 1 → 21
+Bucket 2 → 12
+Bucket 3 → empty
+Bucket 4 → empty
+Bucket 5 → empty
+Bucket 6 → empty
+Bucket 7 → 7
+Bucket 8 → 18
+Bucket 9 → empty
+
+Function printBuckets to inspect the content of each bucket 
+
+The function needs:
+
+for every bucket:
+print the bucket index
+start with the first element of each bucket
+
+while element is not nullptr
+print the key
+move to next element
+
+void printBuckets()
+{
+    for (int i = 0; i < numberOfBuckets; i++)
+    {
+        Element<Value>* current = bucketContainer[i].start;
+        std::cout << "Bucket " << i << ": ";
+
+        while (current != nullptr)
+        {
+            std::cout << current->key << " ";
+            current = current->next;
+        }
+
+        std::cout << '\n';
+    }
+}
+}
+
+-----------------------------------------------------------------------------------------------------------
+
+To find a value given its key:
+
+Since we know where item is stored, we do not need to search through all buckets
+we can use the hash function with the key and that will give us the bucket where the key was stored
+The function starts at the first element of this bucket 
+If the key we found in our search matches the key we passed in the function we return a pointer to the matching element
+If the bucket finished and value is not found, it means is not there and we return nullptr
+
+Element<Value>* findValue(const int& key)
+{
+    int bucketIndex = hash(key);
+    Element<Value>* current = bucketContainer[bucketIndex].start;
+
+    while (current != nullptr)
+    {
+        if (current->key == key)
+        {
+            return current;
+        }
+
+        current = current->next;
+    }
+
+    return nullptr;
+}
+
+-----------------------------------------------------------------------------------------------------------------
+
+To remove an item given its key:
+
+If we have three items in our bucket 
+
+Bucket 1:
+
+start
+|
+|
+|
+--> 32 --> 22 --> 17 --> nullptr
+
+we remove 22 so the chain is 
+
+--> 32 --> 17
+
+we need to work with the current element, and the previous element so we do not break the chain 
+
+ we find the bucket where the key is stored
+ we add the two pointers we need, the one tracking the current element(the one we want to delete) and the previous one
+ while current is still valid, we check if the current key is equal to the key we passed in the function
+ if it is, we have two separate cases 
+  if previous is nullptr it means we are at the start of the chain, so we need to also relink the start to the first element not removed
+  if it is not then we are in the middle
+  After reconnecting the chain, delete current
+  decrease numberOfEntries
+  return
+  
+ If the current key does not match
+ move previous to current and current to current->next
+ If current eventually becomes nullptr, the key does not exist and nothing is removed
+  
+
+void remove(const int& key) {
+
+int bucketIndex = hash(key);             
+Element<Value>* current = bucketContainer[bucketIndex].start;
+Element<Value>* previous = nullptr;
+ while (current != nullptr)
+ {
+     if (current->key == key)
+     {
+         if(previous == nullptr)
+		 {
+		    bucketContainer[bucketIndex].start = current->next;
+		 }
+		 else
+		 {
+			 previous->next = current->next;
+		 
+		 }
+		 
+		 delete current;
+         numberOfEntries--;
+          return;
+     }
+	 
+	  previous = current;
+      current = current->next;
+	    
+ }
+
+
+}
