@@ -1,5 +1,7 @@
 #include <iostream>
 #include <string>
+#include <vector>
+#include <utility>
 
 template <typename Value>
 struct Element
@@ -13,13 +15,13 @@ template <typename Value>
 struct Bucket
 {
     Element<Value>* start = nullptr;
+    
 };
 
 template <typename Value>
 class HashMap
 {
-    Bucket<Value>* bucketContainer;
-    int numberOfBuckets;
+    std::vector<Bucket<Value>> bucketContainer;
     int numberOfEntries;
     double maxLoadFactor;
 
@@ -28,15 +30,14 @@ public:
     // Constructor
     HashMap()
     {
-        numberOfBuckets = 5;
-        bucketContainer = new Bucket<Value>[numberOfBuckets];
+        bucketContainer.resize(5);
         numberOfEntries = 0;
         maxLoadFactor = 0.75;
     }
     // Destructor 
     ~HashMap() 
     {
-        for (int i = 0; i < numberOfBuckets; i++)
+        for (std::size_t i = 0; i < bucketContainer.size(); i++)
         {
             Element<Value>* current = bucketContainer[i].start;
             while (current != nullptr)
@@ -47,20 +48,20 @@ public:
 
             }
         }
-        delete[] bucketContainer;
+        
     }
 
     // Hash function
-    int hash(const int& key)
+   std::size_t hash(const int& key)
     {
-        int bucketIndex = key % numberOfBuckets;
+        std::size_t bucketIndex = key % bucketContainer.size();
         return bucketIndex;
     }
 
     // Add a new key/value pair
     void add(const int& key, const Value& mappedValue)
     {
-        int bucketIndex = hash(key);
+        std::size_t bucketIndex = hash(key);
 
         // Check whether the key already exists
         Element<Value>* current = bucketContainer[bucketIndex].start;
@@ -87,7 +88,7 @@ public:
 
         // Check the load factor
         double currentLoadFactor =
-            static_cast<double>(numberOfEntries) / numberOfBuckets;
+            static_cast<double>(numberOfEntries) / bucketContainer.size();
 
         if (currentLoadFactor > maxLoadFactor)
         {
@@ -98,18 +99,17 @@ public:
     // Rehash
     void rehash()
     {
-        int newNumberOfBuckets = numberOfBuckets * 2;
+        std::size_t newNumberOfBuckets = bucketContainer.size() * 2;
+        std::vector<Bucket<Value>> newBucketContainer;
+        newBucketContainer.resize(newNumberOfBuckets);
 
-        Bucket<Value>* newBucketContainer =
-            new Bucket<Value>[newNumberOfBuckets];
-
-        for (int i = 0; i < numberOfBuckets; i++)
+        for (std::size_t i = 0; i < bucketContainer.size(); i++)
         {
             Element<Value>* current = bucketContainer[i].start;
 
             while (current != nullptr)
             {
-                int newBucketIndex =
+                std::size_t newBucketIndex =
                     current->key % newNumberOfBuckets;
 
                 Element<Value>* temp = current->next;
@@ -124,14 +124,13 @@ public:
             }
         }
 
-        delete[] bucketContainer;
-        bucketContainer = newBucketContainer;
-        numberOfBuckets = newNumberOfBuckets;
+        bucketContainer = std::move(newBucketContainer);
+       
     }
 
     Element<Value>* findValue(const int& key)
     {
-        int bucketIndex = hash(key);
+        std::size_t bucketIndex = hash(key);
         Element<Value>* current = bucketContainer[bucketIndex].start;
         while (current != nullptr)
         {
@@ -147,7 +146,7 @@ public:
 
 	void remove(const int& key) {
 
-		int bucketIndex = hash(key);
+        std::size_t bucketIndex = hash(key);
 		Element<Value>* current = bucketContainer[bucketIndex].start;
 		Element<Value>* previous = nullptr;
 		while (current != nullptr)
@@ -180,7 +179,7 @@ public:
     // Print the contents of each bucket
     void printBuckets()
     {
-        for (int i = 0; i < numberOfBuckets; i++)
+        for (std::size_t i = 0; i < bucketContainer.size(); i++)
         {
             Element<Value>* current =
                 bucketContainer[i].start;
